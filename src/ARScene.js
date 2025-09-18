@@ -9,7 +9,7 @@ export default function ARScene() {
     let renderer, scene, camera;
 
     const startAR = async () => {
-      // Renderer
+      // Renderer with AR support
       renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
       renderer.setSize(window.innerWidth, window.innerHeight);
       renderer.xr.enabled = true;
@@ -27,24 +27,25 @@ export default function ARScene() {
       );
       scene.add(camera);
 
-      // Light
+      // Lights
       const light = new THREE.HemisphereLight(0xffffff, 0xbbbbff, 1);
       scene.add(light);
 
-      // Load model
+      // Load 3D Model
       const loader = new GLTFLoader();
       loader.load("/models/pizza.glb", (gltf) => {
         const model = gltf.scene;
         model.scale.set(0.5, 0.5, 0.5);
-        model.position.set(0, 0, -2); // a bit in front of camera
+        model.position.set(0, 0, -2); // place 2m in front of camera
         scene.add(model);
       });
 
-      // WebXR session
+      // ✅ Add AR Button (to start camera + AR session)
       document.body.appendChild(
         renderer.xr.getButton({ requiredFeatures: ["hit-test"] })
       );
 
+      // Render Loop
       renderer.setAnimationLoop(() => {
         renderer.render(scene, camera);
       });
