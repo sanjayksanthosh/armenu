@@ -1,7 +1,7 @@
 import React, { useRef, useEffect } from "react";
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader";
-import { MindARThree } from "mind-ar/dist/mindar-image-three.js"; // ✅ correct path
+import { MindARThree } from "mind-ar/three"; // ✅ correct import for Vercel
 
 export default function ARSceneMarker() {
   const mountRef = useRef(null);
@@ -12,16 +12,16 @@ export default function ARSceneMarker() {
     const startAR = async () => {
       mindarThree = new MindARThree({
         container: mountRef.current,
-        imageTargetSrc: "/targets/marker.mind", // marker definition
+        imageTargetSrc: "/targets/marker.mind", // marker definition file
       });
 
       ({ renderer, scene, camera } = mindarThree);
 
-      // Light
+      // Lights
       const light = new THREE.HemisphereLight(0xffffff, 0xbbbbff, 1);
       scene.add(light);
 
-      // Create anchor for the marker
+      // Marker anchor
       const anchor = mindarThree.addAnchor(0);
 
       // Load model
