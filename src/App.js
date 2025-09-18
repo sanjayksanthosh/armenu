@@ -1,8 +1,12 @@
 import React from "react";
-import MarkerAR from "./MarkerAR.js";
+import ARScene from "./ARScene";
 
 function App() {
-  return <MarkerAR />;
+  return (
+    <div>
+      <ARScene />
+    </div>
+  );
 }
 
 export default App;
