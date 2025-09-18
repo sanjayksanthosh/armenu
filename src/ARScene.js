@@ -1,80 +1,138 @@
-import React, { useRef, useEffect } from "react";
+import React, { useRef, useEffect, useState } from "react";
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader";
+import { ARButton } from "three/examples/jsm/webxr/ARButton";
 
-export default function ARSceneMarker() {
+export default function ARScene() {
   const mountRef = useRef(null);
+  const [renderer, setRenderer] = useState(null);
 
   useEffect(() => {
-    let mindarThree, renderer, scene, camera, anchor;
+    if (!mountRef.current) return;
 
-    // Function to start AR
-    const startAR = async () => {
-      if (!window.MindARThree) {
-        console.error("MindARThree is not loaded!");
-        return;
+    // Scene setup
+    const scene = new THREE.Scene();
+
+    // Camera setup
+    const camera = new THREE.PerspectiveCamera(
+      70,
+      window.innerWidth / window.innerHeight,
+      0.01,
+      20
+    );
+
+    // Renderer setup
+    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.xr.enabled = true;
+    mountRef.current.appendChild(renderer.domElement);
+    setRenderer(renderer);
+
+    // Add AR button
+    const arButton = ARButton.createButton(renderer, { requiredFeatures: ["hit-test"] });
+    document.body.appendChild(arButton);
+
+    // Reticle for hit test visualization
+    const reticleGeometry = new THREE.RingGeometry(0.1, 0.11, 32).rotateX(-Math.PI / 2);
+    const reticleMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
+    const reticle = new THREE.Mesh(reticleGeometry, reticleMaterial);
+    reticle.matrixAutoUpdate = false;
+    reticle.visible = false;
+    scene.add(reticle);
+
+    // Load 3D model
+    let model = null;
+    const loader = new GLTFLoader();
+    loader.load(
+      "/models/pizza.glb", // Make sure this path is correct and model exists
+      (gltf) => {
+        model = gltf.scene;
+        model.visible = false;
+        scene.add(model);
+      },
+      undefined,
+      (error) => {
+        console.error("Error loading model:", error);
+      }
+    );
+
+    // Controller for input
+    const controller = renderer.xr.getController(0);
+    scene.add(controller);
+
+    // Hit test variables
+    let hitTestSource = null;
+    let hitTestSourceRequested = false;
+
+    controller.addEventListener("select", () => {
+      if (reticle.visible && model) {
+        model.position.setFromMatrixPosition(reticle.matrix);
+        model.visible = true;
+      }
+    });
+
+    // Animation loop
+    renderer.setAnimationLoop((timestamp, frame) => {
+      if (frame) {
+        const referenceSpace = renderer.xr.getReferenceSpace();
+        const session = renderer.xr.getSession();
+
+        if (!hitTestSourceRequested) {
+          session.requestReferenceSpace("viewer").then((refSpace) => {
+            session.requestHitTestSource({ space: refSpace }).then((source) => {
+              hitTestSource = source;
+            });
+          });
+
+          session.addEventListener("end", () => {
+            hitTestSourceRequested = false;
+            hitTestSource = null;
+          });
+
+          hitTestSourceRequested = true;
+        }
+
+        if (hitTestSource) {
+          const hitTestResults = frame.getHitTestResults(hitTestSource);
+
+          if (hitTestResults.length > 0) {
+            const hit = hitTestResults[0];
+            const pose = hit.getPose(referenceSpace);
+            reticle.visible = true;
+            reticle.matrix.fromArray(pose.transform.matrix);
+          } else {
+            reticle.visible = false;
+          }
+        }
       }
 
-      const { MindARThree } = window;
+      renderer.render(scene, camera);
+    });
 
-      mindarThree = new MindARThree({
-        container: mountRef.current,
-        imageTargetSrc: "/targets/marker.mind", // your marker/card file
-      });
-
-      ({ renderer, scene, camera } = mindarThree);
-
-      // Lighting
-      const light = new THREE.HemisphereLight(0xffffff, 0xbbbbff, 1);
-      scene.add(light);
-
-      // Anchor for first marker
-      anchor = mindarThree.addAnchor(0);
-
-      // Load 3D model
-      const loader = new GLTFLoader();
-      loader.load(
-        "/models/pizza.glb",
-        (gltf) => {
-          const model = gltf.scene;
-          model.scale.set(0.5, 0.5, 0.5);
-          model.position.set(0, 0, 0);
-          anchor.group.add(model);
-        },
-        undefined,
-        (error) => {
-          console.error("Error loading model:", error);
-        }
-      );
-
-      // Marker found/lost events
-      anchor.onTargetFound = () => console.log("Marker found!");
-      anchor.onTargetLost = () => console.log("Marker lost!");
-
-      // Start MindAR
-      await mindarThree.start();
-
-      // Render loop
-      renderer.setAnimationLoop(() => {
-        renderer.render(scene, camera);
-      });
+    // Handle window resize
+    const onResize = () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
     };
+    window.addEventListener("resize", onResize);
 
-    // Dynamically load MindAR script
-    const script = document.createElement("script");
-    script.src =
-      "https://cdn.jsdelivr.net/gh/hiukim/mind-ar-js@1.2.0/dist/mindar-image-three.prod.js";
-    script.async = true;
-    script.onload = () => {
-      console.log("MindAR script loaded!");
-      startAR();
-    };
-    document.head.appendChild(script);
-
-    // Cleanup
+    // Cleanup on unmount
     return () => {
-      document.head.removeChild(script);
-      if (mindarThree) mindarThree.stop();
+      window.removeEventListener("resize", onResize);
+
+      if (renderer && renderer.xr.getSession()) {
+        renderer.xr.getSession().end();
+      }
+
+      if (mountRef.current && renderer) {
+        mountRef.current.removeChild(renderer.domElement);
+      }
+
+      const arBtn = document.body.querySelector("button[title='Enter AR']");
+      if (arBtn) {
+        arBtn.remove();
+      }
     };
   }, []);
 
