@@ -1,20 +1,22 @@
-import React, { useRef, useEffect } from "react";
+import React, { useRef, useEffect, useState } from "react";
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader";
 
 export default function ARSceneMarker() {
   const mountRef = useRef(null);
+  const [arStarted, setArStarted] = useState(false);
 
   useEffect(() => {
+    if (!arStarted) return; // only run when user clicks "Start AR"
+
     let mindarThree, renderer, scene, camera;
 
     const startAR = async () => {
-      // ✅ Access MindARThree from window (since we’re using CDN)
       const { MindARThree } = window;
 
       mindarThree = new MindARThree({
         container: mountRef.current,
-        imageTargetSrc: "/targets/marker.mind", // marker definition file
+        imageTargetSrc: "/targets/marker.mind", // your marker file
       });
 
       ({ renderer, scene, camera } = mindarThree);
@@ -23,15 +25,14 @@ export default function ARSceneMarker() {
       const light = new THREE.HemisphereLight(0xffffff, 0xbbbbff, 1);
       scene.add(light);
 
-      // Anchor (index 0 → first marker in marker.mind)
+      // Anchor on marker (index 0)
       const anchor = mindarThree.addAnchor(0);
 
-      // Load model
+      // Load 3D model
       const loader = new GLTFLoader();
       loader.load("/models/pizza.glb", (gltf) => {
         const model = gltf.scene;
         model.scale.set(0.5, 0.5, 0.5);
-        model.position.set(0, 0, 0);
         anchor.group.add(model);
       });
 
@@ -47,7 +48,34 @@ export default function ARSceneMarker() {
     return () => {
       if (mindarThree) mindarThree.stop();
     };
-  }, []);
+  }, [arStarted]);
 
-  return <div ref={mountRef} style={{ width: "100vw", height: "100vh" }} />;
+  return (
+    <div style={{ width: "100vw", height: "100vh", position: "relative" }}>
+      {/* Container for AR */}
+      <div ref={mountRef} style={{ width: "100%", height: "100%" }} />
+
+      {/* Start Button (shows until clicked) */}
+      {!arStarted && (
+        <button
+          onClick={() => setArStarted(true)}
+          style={{
+            position: "absolute",
+            top: "50%",
+            left: "50%",
+            transform: "translate(-50%, -50%)",
+            padding: "15px 30px",
+            fontSize: "18px",
+            borderRadius: "10px",
+            border: "none",
+            background: "#ff5722",
+            color: "#fff",
+            cursor: "pointer",
+          }}
+        >
+          Start AR
+        </button>
+      )}
+    </div>
+  );
 }
