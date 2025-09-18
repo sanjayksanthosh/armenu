@@ -4,7 +4,7 @@ export default function MarkerAR() {
   return (
     <a-scene
       embedded
-      arjs="sourceType: webcam; debugUIEnabled: false;"
+      arjs='sourceType: webcam; debugUIEnabled: false; videoConstraints: { facingMode: "environment", zoom: 1 }; sourceWidth: 640; sourceHeight: 480;'
       style={{ width: "100vw", height: "100vh" }}
     >
       {/* Marker: Hiro pattern */}
