@@ -1,19 +1,18 @@
 import React, { useRef, useEffect } from "react";
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader";
-import { MindARThree } from "mind-ar/dist/mindar-image-three.prod.js";
+import { MindARThree } from "mind-ar/dist/mindar-image-three.js"; // ✅ correct path
 
 export default function ARSceneMarker() {
   const mountRef = useRef(null);
 
   useEffect(() => {
-    let mindarThree, renderer, scene, camera, model;
+    let mindarThree, renderer, scene, camera;
 
     const startAR = async () => {
-      // Initialize MindAR with your marker image
       mindarThree = new MindARThree({
         container: mountRef.current,
-        imageTargetSrc: "/targets/marker.mind", // marker file
+        imageTargetSrc: "/targets/marker.mind", // marker definition
       });
 
       ({ renderer, scene, camera } = mindarThree);
@@ -22,24 +21,17 @@ export default function ARSceneMarker() {
       const light = new THREE.HemisphereLight(0xffffff, 0xbbbbff, 1);
       scene.add(light);
 
-      // Load 3D model
+      // Create anchor for the marker
+      const anchor = mindarThree.addAnchor(0);
+
+      // Load model
       const loader = new GLTFLoader();
       loader.load("/models/pizza.glb", (gltf) => {
-        model = gltf.scene;
+        const model = gltf.scene;
         model.scale.set(0.5, 0.5, 0.5);
         model.position.set(0, 0, 0);
-        model.visible = true;
-        anchor.group.add(model); // attach model to marker anchor
+        anchor.group.add(model);
       });
-
-      // Create anchor for first marker
-      const anchor = mindarThree.addAnchor(0); // index 0 = first marker
-      anchor.onTargetFound = () => {
-        console.log("Marker found!");
-      };
-      anchor.onTargetLost = () => {
-        console.log("Marker lost!");
-      };
 
       await mindarThree.start();
       renderer.setAnimationLoop(() => {
