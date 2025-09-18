@@ -1,6 +1,7 @@
 import React, { useRef, useEffect } from "react";
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader";
+import { ARButton } from "three/examples/jsm/webxr/ARButton.js";
 
 export default function ARScene() {
   const mountRef = useRef(null);
@@ -8,17 +9,17 @@ export default function ARScene() {
   useEffect(() => {
     let renderer, scene, camera;
 
-    const startAR = async () => {
-      // Renderer with AR support
+    const startAR = () => {
+      // Renderer
       renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
       renderer.setSize(window.innerWidth, window.innerHeight);
       renderer.xr.enabled = true;
-      mountRef.current.appendChild(renderer.domElement);
+      if (mountRef.current) {
+        mountRef.current.appendChild(renderer.domElement);
+      }
 
-      // Scene
+      // Scene + Camera
       scene = new THREE.Scene();
-
-      // Camera
       camera = new THREE.PerspectiveCamera(
         70,
         window.innerWidth / window.innerHeight,
@@ -27,25 +28,24 @@ export default function ARScene() {
       );
       scene.add(camera);
 
-      // Lights
+      // Light
       const light = new THREE.HemisphereLight(0xffffff, 0xbbbbff, 1);
       scene.add(light);
 
-      // Load 3D Model
+      // Load model
       const loader = new GLTFLoader();
       loader.load("/models/pizza.glb", (gltf) => {
         const model = gltf.scene;
         model.scale.set(0.5, 0.5, 0.5);
-        model.position.set(0, 0, -2); // place 2m in front of camera
+        model.position.set(0, 0, -2); // 2 meters in front
         scene.add(model);
       });
 
-      // ✅ Add AR Button (to start camera + AR session)
-      document.body.appendChild(
-        renderer.xr.getButton({ requiredFeatures: ["hit-test"] })
-      );
+      // ✅ Add AR button
+      const button = ARButton.createButton(renderer, { requiredFeatures: ["hit-test"] });
+      document.body.appendChild(button);
 
-      // Render Loop
+      // Animation loop
       renderer.setAnimationLoop(() => {
         renderer.render(scene, camera);
       });
@@ -55,7 +55,10 @@ export default function ARScene() {
 
     return () => {
       if (renderer) {
-        mountRef.current.removeChild(renderer.domElement);
+        renderer.setAnimationLoop(null);
+        if (mountRef.current && renderer.domElement.parentNode === mountRef.current) {
+          mountRef.current.removeChild(renderer.domElement);
+        }
       }
     };
   }, []);
