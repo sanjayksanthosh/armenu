@@ -4,31 +4,32 @@ import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader";
 
 export default function ARSceneMarker() {
   const mountRef = useRef(null);
+  const [mindarThree, setMindarThree] = useState(null);
   const [arStarted, setArStarted] = useState(false);
 
   useEffect(() => {
-    if (!arStarted) return; // only run when user clicks "Start AR"
+    let localMindarThree;
 
-    let mindarThree, renderer, scene, camera;
-
-    const startAR = async () => {
+    if (arStarted && mountRef.current) {
       const { MindARThree } = window;
 
-      mindarThree = new MindARThree({
+      localMindarThree = new MindARThree({
         container: mountRef.current,
         imageTargetSrc: "/targets/marker.mind", // your marker file
       });
 
-      ({ renderer, scene, camera } = mindarThree);
+      setMindarThree(localMindarThree);
+
+      const { renderer, scene, camera } = localMindarThree;
 
       // Lights
       const light = new THREE.HemisphereLight(0xffffff, 0xbbbbff, 1);
       scene.add(light);
 
-      // Anchor on marker (index 0)
-      const anchor = mindarThree.addAnchor(0);
+      // Marker anchor
+      const anchor = localMindarThree.addAnchor(0);
 
-      // Load 3D model
+      // Load model
       const loader = new GLTFLoader();
       loader.load("/models/pizza.glb", (gltf) => {
         const model = gltf.scene;
@@ -36,26 +37,22 @@ export default function ARSceneMarker() {
         anchor.group.add(model);
       });
 
-      await mindarThree.start();
-
-      renderer.setAnimationLoop(() => {
-        renderer.render(scene, camera);
+      localMindarThree.start().then(() => {
+        renderer.setAnimationLoop(() => {
+          renderer.render(scene, camera);
+        });
       });
-    };
-
-    startAR();
+    }
 
     return () => {
-      if (mindarThree) mindarThree.stop();
+      if (localMindarThree) localMindarThree.stop();
     };
   }, [arStarted]);
 
   return (
     <div style={{ width: "100vw", height: "100vh", position: "relative" }}>
-      {/* Container for AR */}
       <div ref={mountRef} style={{ width: "100%", height: "100%" }} />
 
-      {/* Start Button (shows until clicked) */}
       {!arStarted && (
         <button
           onClick={() => setArStarted(true)}
